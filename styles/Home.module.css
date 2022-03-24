@@ -12,8 +12,16 @@
   align-items: center;
 }
 
+.selectors {
+  margin: 2rem;
+  display: flex;
+  justify-content: space-evenly;
+  width: 33%;
+}
+
 ul.list {
     margin: 0;
+    margin-bottom: 2rem;
     padding: 0;
     list-style: none;
 }

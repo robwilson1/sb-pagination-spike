@@ -4,29 +4,52 @@ import { useMemo, useEffect, useState } from "react";
 import useSWR from "swr";
 import Head from "next/head";
 import styles from "../styles/Home.module.css";
+import { Selector } from "../components/selector";
 import TablePagination from "@mui/material/TablePagination";
 import Skeleton from "@mui/material/Skeleton";
 import Box from "@mui/material/Box";
 
-import { parseParams, getReviewsParams, paginationFetcher } from "../lib/api";
+import {
+  parseParams,
+  getReviewsParams,
+  paginationFetcher,
+  getMakeOptions,
+  getModelOptions,
+} from "../lib/api";
 
-export default function Home({ initialData, initialKey }) {
+export default function Home({ initialData, initialKey, allMakes }) {
   const [page, setPage] = useState(initialData.page || 1);
-  const [rowsPerPage, setRowsPerPage] = useState(initialData.perPage || 10);
+  const [rowsPerPage, setRowsPerPage] = useState(initialData.perPage || 25);
   const [key, setKey] = useState(initialKey);
+  const [make, setMake] = useState("");
+  const [modelOptions, setModelOptions] = useState([]);
+  const [model, setModel] = useState("");
 
   const params = useMemo(() => {
-    return { ...getReviewsParams(), page, per_page: rowsPerPage };
-  }, [page, rowsPerPage]);
+    return {
+      ...getReviewsParams({ make, model }),
+      page,
+      per_page: rowsPerPage,
+    };
+  }, [page, rowsPerPage, make, model]);
 
   useEffect(() => {
-    const newKey = `https://api.storyblok.com/v1/cdn/stories/${parseParams(
+    const newKey = `https://api.storyblok.com/v2/cdn/stories/${parseParams(
       params
     )}`;
     if (key !== newKey) {
       setKey(newKey);
     }
   }, [params, key]);
+
+  useEffect(() => {
+    async function getAndSetModelOptions() {
+      const modelOptions = await getModelOptions(make);
+      setModelOptions(modelOptions);
+    }
+
+    getAndSetModelOptions();
+  }, [make]);
 
   const { data, isValidating } = useSWR(key, paginationFetcher, {
     fallbackData: initialData,
@@ -39,6 +62,15 @@ export default function Home({ initialData, initialKey }) {
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(1);
+  };
+
+  const handleMakeChange = (event) => {
+    setMake(event.target.value);
+    setModel("");
+  };
+
+  const handleModelChange = (event) => {
+    setModel(event.target.value);
   };
 
   return (
@@ -58,7 +90,21 @@ export default function Home({ initialData, initialKey }) {
       </Head>
 
       <main className={styles.main}>
-        <h1>{data.total} stories...</h1>
+        <div className={styles.selectors}>
+          <Selector
+            label="make"
+            value={make}
+            handleChange={handleMakeChange}
+            options={allMakes}
+          />
+          <Selector
+            label="model"
+            value={model}
+            handleChange={handleModelChange}
+            options={modelOptions}
+            disabled={!make}
+          />
+        </div>
 
         <Box>
           {isValidating ? (
@@ -88,16 +134,18 @@ export default function Home({ initialData, initialKey }) {
 }
 
 export async function getStaticProps({ preview = false }) {
-  const params = { ...getReviewsParams({ preview }), page: 1, per_page: 10 };
-  const initialKey = `https://api.storyblok.com/v1/cdn/stories/${parseParams(
+  const params = { ...getReviewsParams({ preview }), page: 1, per_page: 25 };
+  const initialKey = `https://api.storyblok.com/v2/cdn/stories/${parseParams(
     params
   )}`;
   const initialData = await paginationFetcher(initialKey);
+  const allMakes = await getMakeOptions();
 
   return {
     props: {
       initialData,
       initialKey,
+      allMakes,
     },
   };
 }
