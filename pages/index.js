@@ -1,6 +1,5 @@
 /* eslint-disable @next/next/no-page-custom-font */
 
-import { useMemo, useEffect, useState } from "react";
 import useSWR from "swr";
 import Head from "next/head";
 import styles from "../styles/Home.module.css";
@@ -14,44 +13,34 @@ import {
   getReviewsParams,
   paginationFetcher,
   getMakeOptions,
-  getModelOptions,
 } from "../lib/api";
 
-export default function Home({ initialData, initialKey, allMakes }) {
-  const [page, setPage] = useState(initialData.page || 1);
-  const [rowsPerPage, setRowsPerPage] = useState(initialData.perPage || 25);
-  const [key, setKey] = useState(initialKey);
-  const [make, setMake] = useState("");
-  const [modelOptions, setModelOptions] = useState([]);
-  const [model, setModel] = useState("");
+import useStore from "../state";
 
-  const params = useMemo(() => {
-    return {
-      ...getReviewsParams({ make, model }),
-      page,
-      per_page: rowsPerPage,
-    };
-  }, [page, rowsPerPage, make, model]);
+const pageSelector = (state) => state.page;
+const rowsPerPageSelector = (state) => state.rowsPerPage;
+const reviewsUrlSelector = (state) => state.reviewsUrl;
+const selectedMakeSelector = (state) => state.selectedMake;
+const selectedModelSelector = (state) => state.selectedModel;
+const modelOptionsSelector = (state) => state.modelOptions;
+const setPageSelector = (state) => state.setPage;
+const setRowsPerPageSelector = (state) => state.setRowsPerPage;
+const setMakeSelector = (state) => state.setSelectedMake;
+const setModelSelector = (state) => state.setSelectedModel;
 
-  useEffect(() => {
-    const newKey = `https://api.storyblok.com/v2/cdn/stories/${parseParams(
-      params
-    )}`;
-    if (key !== newKey) {
-      setKey(newKey);
-    }
-  }, [params, key]);
+export default function Home({ initialData, allMakes }) {
+  const page = useStore(pageSelector);
+  const rowsPerPage = useStore(rowsPerPageSelector);
+  const reviewsUrl = useStore(reviewsUrlSelector);
+  const selectedMake = useStore(selectedMakeSelector);
+  const selectedModel = useStore(selectedModelSelector);
+  const modelOptions = useStore(modelOptionsSelector);
+  const setPage = useStore(setPageSelector);
+  const setRowsPerPage = useStore(setRowsPerPageSelector);
+  const setMake = useStore(setMakeSelector);
+  const setModel = useStore(setModelSelector);
 
-  useEffect(() => {
-    async function getAndSetModelOptions() {
-      const modelOptions = await getModelOptions(make);
-      setModelOptions(modelOptions);
-    }
-
-    getAndSetModelOptions();
-  }, [make]);
-
-  const { data, isValidating } = useSWR(key, paginationFetcher, {
+  const { data, isValidating } = useSWR(reviewsUrl, paginationFetcher, {
     fallbackData: initialData,
   });
 
@@ -61,12 +50,10 @@ export default function Home({ initialData, initialKey, allMakes }) {
 
   const handleChangeRowsPerPage = (event) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(1);
   };
 
   const handleMakeChange = (event) => {
     setMake(event.target.value);
-    setModel("");
   };
 
   const handleModelChange = (event) => {
@@ -93,16 +80,16 @@ export default function Home({ initialData, initialKey, allMakes }) {
         <div className={styles.selectors}>
           <Selector
             label="make"
-            value={make}
+            value={selectedMake}
             handleChange={handleMakeChange}
             options={allMakes}
           />
           <Selector
             label="model"
-            value={model}
+            value={selectedModel}
             handleChange={handleModelChange}
             options={modelOptions}
-            disabled={!make}
+            disabled={!selectedMake}
           />
         </div>
 
@@ -138,13 +125,13 @@ export async function getStaticProps({ preview = false }) {
   const initialKey = `https://api.storyblok.com/v2/cdn/stories/${parseParams(
     params
   )}`;
+
   const initialData = await paginationFetcher(initialKey);
   const allMakes = await getMakeOptions();
 
   return {
     props: {
       initialData,
-      initialKey,
       allMakes,
     },
   };
